@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>casemgmt 라이선스 관리</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+/* ── 디자인 방침(가이드 ㊴): 밝은 배경·데이터 밀도 높은 테이블·고정 헤더·행 hover·
+     색은 상태 배지에만·한국어·데스크톱 전용. 목표는 화려함이 아니라 스캔 속도. ── */
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --line:#dfe3e8; --text:#1f2933; --sub:#6b7280;
+  --head:#f0f2f5; --hover:#f6f9fc; --accent:#1565c0;
+  --g:#2e7d32; --g-bg:#e8f5e9;   /* active 초록 */
+  --o:#e65100; --o-bg:#fff3e0;   /* 임박 주황 */
+  --r:#c62828; --r-bg:#ffebee;   /* suspended 빨강 */
+  --gr:#616161; --gr-bg:#eeeeee; /* expired 회색 */
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:'Malgun Gothic','맑은 고딕',AppleGothic,sans-serif;font-size:14px;min-width:1100px}
+button{font-family:inherit;font-size:13px;cursor:pointer;border:1px solid var(--line);
+  background:#fff;border-radius:4px;padding:5px 12px;color:var(--text)}
+button:hover{background:var(--hover)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:#0d47a1}
+button.danger{color:var(--r);border-color:#e9b8b8}
+button.danger:hover{background:var(--r-bg)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,select,textarea{font-family:inherit;font-size:13px;padding:6px 8px;
+  border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:2px solid #bbdefb;border-color:var(--accent)}
+
+/* 로그인 게이트 */
+#gate{max-width:420px;margin:120px auto;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:32px}
+#gate h1{font-size:18px;margin:0 0 6px}
+#gate p{color:var(--sub);font-size:13px;margin:0 0 18px}
+#gate input{width:100%;margin-bottom:10px}
+#gate button{width:100%;padding:9px}
+#gateErr{color:var(--r);font-size:13px;min-height:18px;margin-top:8px}
+
+/* 상단 바 + 탭 */
+#app{display:none}
+#topbar{background:var(--card);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:4px;padding:0 20px;position:sticky;top:0;z-index:30}
+#topbar h1{font-size:15px;margin:0 24px 0 0;padding:14px 0;white-space:nowrap}
+.tabbtn{border:none;background:none;border-radius:0;padding:14px 16px;font-size:14px;color:var(--sub);
+  border-bottom:3px solid transparent}
+.tabbtn:hover{background:var(--hover);color:var(--text)}
+.tabbtn.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:bold}
+#topbar .spacer{flex:1}
+#topbar .meta{color:var(--sub);font-size:12px;margin-right:12px}
+
+main{padding:18px 20px 60px;max-width:1600px;margin:0 auto}
+.tab{display:none}
+.tab.on{display:block}
+
+/* 대시보드 카드 */
+.cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:18px 22px;min-width:200px;cursor:pointer}
+.card:hover{border-color:var(--accent)}
+.card .num{font-size:30px;font-weight:bold;margin-bottom:2px}
+.card .lbl{color:var(--sub);font-size:13px}
+.card.warn .num{color:var(--o)}
+.card.alert .num{color:var(--r)}
+
+/* 도구줄(검색·필터·버튼) */
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.toolbar .grow{flex:1}
+.toolbar input[type=text]{width:260px}
+.hint{color:var(--sub);font-size:12px}
+
+/* 테이블 */
+.tblwrap{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  overflow:auto;max-height:calc(100vh - 240px)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+thead th{position:sticky;top:0;background:var(--head);z-index:5;
+  text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;
+  cursor:pointer;user-select:none}
+thead th.nosort{cursor:default}
+thead th .arrow{color:var(--accent);font-size:11px}
+tbody td{padding:8px 10px;border-bottom:1px solid #eef1f4;white-space:nowrap;vertical-align:middle}
+tbody tr:hover{background:var(--hover)}
+tbody tr.rowclick{cursor:pointer}
+tbody tr.sel{background:#e3f0fd}
+td.wrap{white-space:normal;max-width:280px}
+.empty{padding:26px;text-align:center;color:var(--sub)}
+
+/* 상태 배지 + 디데이 (C) */
+.badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:12px;font-weight:bold}
+.b-active{background:var(--g-bg);color:var(--g)}
+.b-soon{background:var(--o-bg);color:var(--o)}
+.b-expired{background:var(--gr-bg);color:var(--gr)}
+.b-suspended{background:var(--r-bg);color:var(--r)}
+.b-etc{background:#e3f2fd;color:var(--accent)}
+.dday{font-size:12px;margin-left:6px;color:var(--o);font-weight:bold}
+.hl-cross{background:#fff8e1}
+.hl-stop{background:var(--r-bg)}
+.tag{display:inline-block;background:#eceff1;color:#455a64;border-radius:4px;
+  padding:1px 6px;font-size:11px;margin-left:6px}
+
+/* 라이선스 상세 패널 (D) — 목록 우측 고정 */
+#tab-lic .liclayout{display:flex;gap:14px;align-items:flex-start}
+#tab-lic .liclayout .tblwrap{flex:1}
+#detail{width:400px;flex:none;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;padding:16px;display:none;position:sticky;top:66px;
+  max-height:calc(100vh - 90px);overflow:auto}
+#detail h3{margin:0 0 4px;font-size:16px}
+#detail .kv{margin:10px 0;font-size:13px}
+#detail .kv div{display:flex;padding:3px 0}
+#detail .kv b{width:92px;flex:none;color:var(--sub);font-weight:normal}
+#detail .kv span{word-break:break-all}
+#detail .acts{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+#detail textarea{width:100%;height:64px;resize:vertical}
+#detail h4{margin:16px 0 6px;font-size:13px;color:var(--sub);border-top:1px solid var(--line);padding-top:12px}
+#detail table{font-size:12px}
+#detail thead th{cursor:default;padding:6px}
+#detail tbody td{padding:5px 6px}
+
+/* 모달 */
+#ovl{display:none;position:fixed;inset:0;background:rgba(15,23,32,.45);z-index:50;
+  align-items:flex-start;justify-content:center}
+#ovl.on{display:flex}
+.modal{background:#fff;border-radius:8px;margin-top:90px;width:480px;max-width:92vw;
+  padding:22px;max-height:80vh;overflow:auto}
+.modal h3{margin:0 0 14px;font-size:16px}
+.modal .frow{margin-bottom:10px}
+.modal .frow label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+.modal .frow input[type=text],.modal .frow input[type=number],.modal .frow input[type=date],
+.modal .frow select,.modal .frow textarea{width:100%}
+.modal .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.modal .warnbox{background:var(--o-bg);border:1px solid #ffe0b2;border-radius:6px;
+  padding:10px 12px;font-size:13px;margin-bottom:12px}
+.modal .dangerbox{background:var(--r-bg);border:1px solid #ffcdd2;border-radius:6px;
+  padding:10px 12px;font-size:13px;margin-bottom:12px}
+.modal .okbox{background:var(--g-bg);border:1px solid #c8e6c9;border-radius:6px;
+  padding:10px 12px;font-size:13px;margin-bottom:12px;word-break:break-all}
+.modal pre{background:#f6f8fa;border:1px solid var(--line);border-radius:6px;
+  padding:12px;font-size:12px;white-space:pre-wrap;font-family:inherit}
+
+/* 토스트 */
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);
+  background:#263238;color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;
+  display:none;z-index:80;max-width:80vw}
+</style>
+</head>
+<body>
+
+<!-- ── 로그인 게이트: ADMIN_SECRET은 메모리에만 보관(저장·기록 일절 없음) ── -->
+<div id="gate">
+  <h1>casemgmt 라이선스 관리</h1>
+  <p>관리자 시크릿을 입력하세요. 이 값은 이 화면의 메모리에만 사용되며 어디에도 저장되지 않습니다.</p>
+  <input type="password" id="gateSecret" placeholder="ADMIN_SECRET" autocomplete="off">
+  <button class="primary" id="gateBtn">접속</button>
+  <div id="gateErr"></div>
+</div>
+
+<div id="app">
+  <div id="topbar">
+    <h1>casemgmt 라이선스 관리</h1>
+    <button class="tabbtn on" data-tab="dash">대시보드</button>
+    <button class="tabbtn" data-tab="signup">가입 신청 <span id="cntSignup"></span></button>
+    <button class="tabbtn" data-tab="lic">라이선스</button>
+    <button class="tabbtn" data-tab="log">로그</button>
+    <button class="tabbtn" data-tab="ip">IP 차단</button>
+    <div class="spacer"></div>
+    <span class="meta" id="lastLoad"></span>
+    <button id="btnReload">새로고침</button>
+    <button id="btnLock">잠금</button>
+  </div>
+
+  <main>
+    <!-- ① 대시보드 -->
+    <div class="tab on" id="tab-dash">
+      <div class="cards">
+        <div class="card" data-go="lic"><div class="num" id="ovActive">–</div><div class="lbl">활성 기관</div></div>
+        <div class="card warn" data-go="lic"><div class="num" id="ovSoon">–</div><div class="lbl">만료 임박 (30일 이내)</div></div>
+        <div class="card" data-go="signup"><div class="num" id="ovPending">–</div><div class="lbl">미처리 가입 신청</div></div>
+        <div class="card alert" data-go="log"><div class="num" id="ovSuspect">–</div><div class="lbl">최근 7일 의심 신호 키</div></div>
+      </div>
+      <div id="soonList" style="margin-bottom:12px"></div>
+      <div id="suspectList"></div>
+      <p class="hint">숫자를 클릭하면 해당 탭으로 이동합니다. 평소에는 이 화면만 봐도 오늘 처리할 일을 확인할 수 있습니다.</p>
+    </div>
+
+    <!-- ② 가입 신청 -->
+    <div class="tab" id="tab-signup">
+      <div class="toolbar">
+        <input type="text" id="suSearch" placeholder="기관명·담당자 검색">
+        <select id="suStatus">
+          <option value="">상태 전체</option>
+          <option value="pending">미처리</option>
+          <option value="approved">승인</option>
+          <option value="rejected">거절</option>
+        </select>
+        <span class="grow"></span>
+        <span class="hint">기본 정렬: 미처리 우선 · 최신순</span>
+      </div>
+      <div class="tblwrap"><table id="suTbl">
+        <thead><tr>
+          <th data-k="org_name">기관명</th><th data-k="manager">담당자</th>
+          <th data-k="contact">연락처</th><th data-k="email">이메일</th>
+          <th data-k="status">상태</th><th data-k="created_at">신청일</th>
+          <th class="nosort">처리</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- ③ 라이선스 -->
+    <div class="tab" id="tab-lic">
+      <div class="toolbar">
+        <input type="text" id="licSearch" placeholder="기관명·라이선스 키 검색">
+        <select id="licStatus">
+          <option value="">상태 전체</option>
+          <option value="active">사용 중</option>
+          <option value="expired">만료</option>
+          <option value="suspended">정지</option>
+        </select>
+        <select id="licPlan">
+          <option value="">플랜 전체</option>
+          <option value="trial">체험(30일)</option>
+          <option value="monthly">월간</option>
+          <option value="yearly">연간</option>
+          <option value="lifetime">평생</option>
+          <option value="custom">기간 지정</option>
+        </select>
+        <span class="grow"></span>
+        <button id="btnCsv">CSV 내보내기</button>
+        <button class="primary" id="btnIssue">+ 신규 발급</button>
+      </div>
+      <div class="liclayout">
+        <div class="tblwrap"><table id="licTbl">
+          <thead><tr>
+            <th data-k="_badge">상태</th><th data-k="org_name">기관명</th>
+            <th data-k="license_key">라이선스 키</th><th data-k="plan_type">플랜</th>
+            <th data-k="expire_date">만료일</th><th data-k="last_verified_at">최근 검증</th>
+            <th data-k="note">메모</th>
+          </tr></thead><tbody></tbody>
+        </table></div>
+        <!-- D. 행 클릭 → 키 상세 패널 -->
+        <div id="detail"></div>
+      </div>
+      <p class="hint">행을 클릭하면 오른쪽에 상세 패널이 열립니다. 기본 정렬: 만료 임박순 — 위에서부터 주황색을 처리하면 갱신 업무가 끝납니다.</p>
+    </div>
+
+    <!-- ④ 로그 -->
+    <div class="tab" id="tab-log">
+      <div class="toolbar">
+        <input type="text" id="logKey" placeholder="라이선스 키 (비우면 전체)">
+        <select id="logDays">
+          <option value="7">최근 7일</option>
+          <option value="30">최근 30일</option>
+          <option value="90" selected>최근 90일</option>
+          <option value="365">최근 1년</option>
+        </select>
+        <button class="primary" id="btnLogLoad">조회</button>
+        <span class="grow"></span>
+        <span class="hint">노랑 = 7일 내 서로 다른 IP 교차 키 · 빨강 = auto_stop(동시 구동 자동 꺼짐) · 최대 500건</span>
+      </div>
+      <div class="tblwrap"><table id="logTbl">
+        <thead><tr>
+          <th data-k="created_at">시각</th><th data-k="license_key">키</th>
+          <th data-k="_org">기관명</th><th data-k="result">결과</th>
+          <th data-k="ip">IP</th><th class="nosort">조치</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+    </div>
+
+    <!-- ⑤ IP 차단 -->
+    <div class="tab" id="tab-ip">
+      <div class="toolbar">
+        <input type="text" id="ipNew" placeholder="차단할 IP" style="width:170px">
+        <input type="text" id="ipReason" placeholder="사유 (필수)" style="width:260px">
+        <input type="text" id="ipOrg" placeholder="관련 기관명 (선택)" style="width:180px">
+        <button class="primary" id="btnIpAdd">차단 추가</button>
+        <span class="grow"></span>
+        <span class="hint">차단 반영은 해당 기관의 다음 재검증 시(최대 24시간)</span>
+      </div>
+      <div class="tblwrap"><table id="ipTbl">
+        <thead><tr>
+          <th data-k="ip">IP</th><th data-k="reason">사유</th>
+          <th data-k="org_name">기관명</th><th data-k="blocked_at">차단일</th>
+          <th class="nosort">처리</th>
+        </tr></thead><tbody></tbody>
+      </table></div>
+    </div>
+  </main>
+</div>
+
+<div id="ovl"><div class="modal" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════════════
+   casemgmt 라이선스 관리 — 단일 정적 HTML (서버 없음)
+   - ADMIN_SECRET: 화면 입력 → JS 메모리 변수에만 보관. 저장·기록 일절 없음.
+   - 모든 요청: POST + x-admin-secret 헤더 → admin-portal Edge Function이 검증.
+   - 연장(extend)은 의도(term)만 전송 — 날짜 계산은 서버 단일 정본(calcExpire).
+     ★이 화면에 연장용 날짜 입력칸을 만들지 말 것 (이원화 재발 금지)★
+   - 모든 외부 데이터(기관명 등 가입 신청 입력 포함)는 esc()로 이스케이프 후 표시.
+   ══════════════════════════════════════════════════════════════════ */
+const API = 'https://apijbeqbwujcecawvccw.supabase.co/functions/v1/admin-portal';
+
+let SECRET = '';                 // 메모리에만 — 잠금 시 즉시 비움
+let OV = null, LIC = [], SU = [], LOGS = [], BLK = [];
+let logsLoadedOnce = false;
+let selKey = null;               // 상세 패널에 열린 키
+const sortState = { su:{k:null,asc:true}, lic:{k:null,asc:true}, log:{k:null,asc:true}, ip:{k:null,asc:true} };
+
+/* ── 한국어 표기 맵 (값은 서버 원문 유지·표시만 한국어) ── */
+const PLAN_KO = { trial: '체험(30일)', monthly: '월간', yearly: '연간', lifetime: '평생', custom: '기간 지정' };
+const SU_STATUS_KO = { pending: '미처리', approved: '승인', rejected: '거절' };
+const LIC_STATUS_KO = { active: '사용 중', expired: '만료', suspended: '정지' };
+const RESULT_KO = { success: '정상', expired: '만료', device_mismatch: '기기 불일치',
+  ip_blocked: 'IP 차단', auto_stop: '동시 구동 종료', invalid: '키 없음', clock_error: '시계 오류' };
+const planKo = p => PLAN_KO[p] || p;
+const resultKo = v => RESULT_KO[v] || v;
+
+/* ── 공통 유틸 ─────────────────────────────────────────── */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayStr(){ return new Date().toISOString().split('T')[0]; }
+function fmtDT(iso){ // 시각 표시 (한국 시간)
+  if (!iso) return '';
+  let s = String(iso);
+  // ★Supabase TIMESTAMP는 UTC로 저장되는데 시간대 표기(Z) 없이 내려옴 —
+  //   Z를 붙여 UTC로 해석해야 로컬(한국) 시간으로 정확히 변환됨 (실측에서 9시간 차이로 발견)★
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/(?:[Zz]|[+\-]\d{2}:?\d{2})$/.test(s)) s += 'Z';
+  const d = new Date(s);
+  if (isNaN(d)) return String(iso);
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function fmtD(v){ return v ? String(v).split('T')[0] : ''; }
+function toast(msg, isError){
+  const t = $('#toast');
+  t.textContent = isError ? msg + '  (클릭하면 닫힘)' : msg;
+  t.style.background = isError ? '#b71c1c' : '#263238';
+  t.style.display = 'block';
+  clearTimeout(toast._t);
+  if (!isError) toast._t = setTimeout(() => t.style.display = 'none', 3200);
+}
+$('#toast').addEventListener('click', () => $('#toast').style.display = 'none');
+function daysUntil(dateStr){
+  if (!dateStr) return null;
+  return Math.ceil((new Date(dateStr + 'T00:00:00Z') - new Date(todayStr() + 'T00:00:00Z')) / 86400000);
+}
+
+/* ── API 래퍼 ─────────────────────────────────────────── */
+async function api(op, params){
+  let res;
+  try {
+    res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-secret': SECRET },
+      body: JSON.stringify(Object.assign({ op }, params || {})),
+    });
+  } catch (e) {
+    toast('서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.', true);
+    return { success: false, error: '서버 연결 실패' }; // throw하지 않음 — 모달 버튼이 잠긴 채 남지 않게
+  }
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* 비JSON 응답 */ }
+  if (res.status === 401) {
+    lock('관리자 시크릿이 올바르지 않습니다. 다시 입력하세요.');
+    throw new Error('unauthorized');
+  }
+  return data || { success: false, error: 'HTTP ' + res.status };
+}
+
+/* ── 게이트 (접속·잠금) ────────────────────────────────── */
+async function tryLogin(){
+  const v = $('#gateSecret').value.trim();
+  if (!v) { $('#gateErr').textContent = '시크릿을 입력하세요.'; return; }
+  $('#gateBtn').disabled = true; $('#gateErr').textContent = '';
+  SECRET = v;
+  try {
+    const d = await api('overview');
+    if (d && d.success) {
+      OV = d.overview;
+      $('#gateSecret').value = '';
+      $('#gate').style.display = 'none';
+      $('#app').style.display = 'block';
+      await loadAll(true);
+    } else {
+      SECRET = '';
+      $('#gateErr').textContent = '접속 실패: ' + (d && d.error ? d.error : '알 수 없는 오류');
+    }
+  } catch (e) {
+    if (String(e.message) !== 'unauthorized') $('#gateErr').textContent = '서버 연결 실패 — 인터넷 상태를 확인하세요.';
+  }
+  $('#gateBtn').disabled = false;
+}
+function lock(msg){
+  closeModal();
+  SECRET = '';
+  OV = null; LIC = []; SU = []; LOGS = []; BLK = []; selKey = null; logsLoadedOnce = false;
+  $('#app').style.display = 'none';
+  $('#gate').style.display = 'block';
+  $('#gateErr').textContent = msg || '';
+  $('#gateSecret').value = '';
+  $('#gateSecret').focus();
+}
+$('#gateBtn').addEventListener('click', tryLogin);
+$('#gateSecret').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+$('#btnLock').addEventListener('click', () => lock());
+
+/* ── 데이터 로드 ──────────────────────────────────────── */
+async function loadAll(skipOverview){
+  const jobs = [ api('list_licenses'), api('list_signups'), api('list_blocked') ];
+  if (!skipOverview) jobs.push(api('overview'));
+  const [dl, ds, db, dv] = await Promise.all(jobs);
+  if (dl && dl.success) LIC = dl.rows || [];
+  if (ds && ds.success) SU = ds.rows || [];
+  if (db && db.success) BLK = db.rows || [];
+  if (dv && dv.success) OV = dv.overview;
+  $('#lastLoad').textContent = '갱신 ' + fmtDT(new Date().toISOString());
+  renderDash(); renderSignup(); renderLic(); renderBlk();
+  if (selKey) openDetail(selKey, true);
+}
+$('#btnReload').addEventListener('click', () => loadAll());
+
+/* ── 탭 전환 ─────────────────────────────────────────── */
+function goTab(name){
+  $$('.tabbtn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  $$('.tab').forEach(t => t.classList.toggle('on', t.id === 'tab-' + name));
+  if (name === 'log' && !logsLoadedOnce) loadLogs();
+}
+$$('.tabbtn').forEach(b => b.addEventListener('click', () => goTab(b.dataset.tab)));
+$$('.card').forEach(c => c.addEventListener('click', () => goTab(c.dataset.go)));
+
+/* ── 정렬 공통 ───────────────────────────────────────── */
+function attachSort(tblId, stateKey, renderFn){
+  $('#' + tblId).querySelector('thead').addEventListener('click', e => {
+    const th = e.target.closest('th');
+    if (!th || th.classList.contains('nosort')) return;
+    const k = th.dataset.k;
+    const st = sortState[stateKey];
+    if (st.k === k) st.asc = !st.asc; else { st.k = k; st.asc = true; }
+    renderFn();
+  });
+}
+function sortRows(rows, k, asc){
+  return rows.slice().sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;           // 빈 값은 항상 뒤로
+    if (y == null) return -1;
+    if (typeof x === 'number' && typeof y === 'number') return asc ? x - y : y - x;
+    x = String(x); y = String(y);
+    return asc ? x.localeCompare(y) : y.localeCompare(x);
+  });
+}
+function markSortHeader(tblId, stateKey){
+  const st = sortState[stateKey];
+  $('#' + tblId).querySelectorAll('thead th').forEach(th => {
+    const base = th.textContent.replace(/ [▲▼]$/, '');
+    th.innerHTML = esc(base) + (st.k === th.dataset.k ? ` <span class="arrow">${st.asc ? '▲' : '▼'}</span>` : '');
+  });
+}
+
+/* ── 상태 배지 + 디데이 (C) ───────────────────────────── */
+function badgeInfo(row){
+  if (row.status === 'suspended') return { cls: 'b-suspended', label: '정지', dday: '' };
+  if (row.status === 'expired')   return { cls: 'b-expired',   label: '만료', dday: '' };
+  if (row.status === 'active') {
+    if (row.plan_type === 'lifetime') return { cls: 'b-active', label: '평생', dday: '' };
+    const dd = daysUntil(row.expire_date);
+    if (dd == null) return { cls: 'b-active', label: '정상', dday: '' };
+    if (dd < 0)   return { cls: 'b-expired', label: '만료 경과', dday: '' };
+    if (dd <= 30) return { cls: 'b-soon', label: '임박', dday: 'D-' + dd };
+    return { cls: 'b-active', label: '정상', dday: '' };
+  }
+  return { cls: 'b-etc', label: row.status || '?', dday: '' };
+}
+function badgeHtml(row){
+  const b = badgeInfo(row);
+  return `<span class="badge ${b.cls}">${esc(b.label)}</span>` + (b.dday ? `<span class="dday">${b.dday}</span>` : '');
+}
+
+/* ── ① 대시보드 ─────────────────────────────────────── */
+function renderDash(){
+  if (!OV) return;
+  $('#ovActive').textContent = OV.active_count;
+  $('#ovSoon').textContent = OV.expiring_30d;
+  $('#ovPending').textContent = OV.pending_signups;
+  const keys = OV.suspect_keys || [];
+  $('#ovSuspect').textContent = keys.length;
+  $('#cntSignup').textContent = OV.pending_signups > 0 ? `(${OV.pending_signups})` : '';
+  // 만료 임박 기관을 대시보드에서 바로 보여줌 (탭 이동 없이 오늘 할 일 확인)
+  const soonRows = LIC
+    .filter(x => x.status === 'active' && x.plan_type !== 'lifetime' && x.expire_date)
+    .map(x => ({ x, dd: daysUntil(x.expire_date) }))
+    .filter(v => v.dd != null && v.dd >= 0 && v.dd <= 30)
+    .sort((a, b) => a.dd - b.dd);
+  $('#soonList').innerHTML = soonRows.length
+    ? '<p class="hint">만료 임박 기관 (클릭하면 상세 패널):</p>' + soonRows.map(v =>
+        `<button data-soon="${esc(v.x.license_key)}" style="margin:0 6px 6px 0">
+          <span class="badge b-soon">D-${v.dd}</span> ${esc(v.x.org_name)} · ~${esc(fmtD(v.x.expire_date))}</button>`).join('')
+    : '';
+  $('#soonList').querySelectorAll('button[data-soon]').forEach(btn => btn.addEventListener('click', () => {
+    goTab('lic'); openDetail(btn.dataset.soon);
+  }));
+  const box = $('#suspectList');
+  if (!keys.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<p class="hint">의심 신호 키 (클릭하면 로그 조회):</p>' +
+    keys.map(k => `<button class="danger" data-sk="${esc(k)}" style="margin:0 6px 6px 0">${esc(k)}</button>`).join('');
+  box.querySelectorAll('button[data-sk]').forEach(btn => btn.addEventListener('click', () => {
+    $('#logKey').value = btn.dataset.sk; goTab('log'); loadLogs();
+  }));
+}
+
+/* ── ② 가입 신청 ────────────────────────────────────── */
+function renderSignup(){
+  const q = $('#suSearch').value.trim().toLowerCase();
+  const st = $('#suStatus').value;
+  let rows = SU.filter(r =>
+    (!st || r.status === st) &&
+    (!q || String(r.org_name || '').toLowerCase().includes(q) || String(r.manager || '').toLowerCase().includes(q)));
+  const s = sortState.su;
+  if (s.k) rows = sortRows(rows, s.k, s.asc);
+  else rows.sort((a, b) => { // 기본: pending 우선 + 최신순
+    const pa = a.status === 'pending' ? 0 : 1, pb = b.status === 'pending' ? 0 : 1;
+    if (pa !== pb) return pa - pb;
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
+  const tb = $('#suTbl tbody');
+  tb.innerHTML = rows.map(r => `<tr>
+    <td>${esc(r.org_name)}</td><td>${esc(r.manager)}</td><td>${esc(r.contact)}</td>
+    <td>${esc(r.email)}</td>
+    <td>${r.status === 'pending' ? '<span class="badge b-soon">미처리</span>'
+        : r.status === 'approved' ? '<span class="badge b-active">승인</span>'
+        : '<span class="badge b-expired">' + esc(SU_STATUS_KO[r.status] || r.status) + '</span>'}</td>
+    <td>${esc(fmtDT(r.created_at))}</td>
+    <td>
+      ${r.status === 'pending' ? `<button class="primary" data-ap="${esc(r.id)}">승인 (발급)</button>
+      <button data-rj="${esc(r.id)}">거절</button>` : ''}
+      <button class="danger" data-ds="${esc(r.id)}">삭제</button>
+    </td></tr>`).join('') || '<tr><td colspan="7" class="empty">가입 신청이 없습니다.</td></tr>';
+  markSortHeader('suTbl', 'su');
+  tb.querySelectorAll('[data-ap]').forEach(b => b.addEventListener('click', () => {
+    const r = SU.find(x => String(x.id) === b.dataset.ap);
+    openIssueModal({ org_name: r.org_name, signup_id: r.id });
+  }));
+  tb.querySelectorAll('[data-rj]').forEach(b => b.addEventListener('click', () => {
+    const r = SU.find(x => String(x.id) === b.dataset.rj);
+    showConfirm('가입 신청 거절', `<b>${esc(r.org_name)}</b>의 가입 신청을 거절합니다.`, async () => {
+      const d = await api('reject_signup', { signup_id: r.id });
+      if (d.success) { toast('거절 처리했습니다.'); closeModal(); loadAll(); }
+      else toast('실패: ' + (d.error || ''), true);
+    });
+  }));
+  tb.querySelectorAll('[data-ds]').forEach(b => b.addEventListener('click', () => {
+    const r = SU.find(x => String(x.id) === b.dataset.ds);
+    showConfirm('가입 신청 삭제', `<b>${esc(r.org_name)}</b>의 신청 기록을 삭제합니다. 되돌릴 수 없습니다.`, async () => {
+      const d = await api('delete_signup', { signup_id: r.id });
+      if (d.success) { toast('삭제했습니다.'); closeModal(); loadAll(); }
+      else toast('실패: ' + (d.error || ''), true);
+    }, true);
+  }));
+}
+$('#suSearch').addEventListener('input', renderSignup);
+$('#suStatus').addEventListener('change', renderSignup);
+attachSort('suTbl', 'su', renderSignup);
+
+/* ── ③ 라이선스 ─────────────────────────────────────── */
+function licFiltered(){
+  const q = $('#licSearch').value.trim().toLowerCase();
+  const st = $('#licStatus').value, pl = $('#licPlan').value;
+  return LIC.filter(r =>
+    (!st || r.status === st) && (!pl || r.plan_type === pl) &&
+    (!q || String(r.org_name || '').toLowerCase().includes(q) ||
+           String(r.license_key || '').toLowerCase().includes(q)));
+}
+function renderLic(){
+  let rows = licFiltered();
+  const s = sortState.lic;
+  if (s.k && s.k !== '_badge') rows = sortRows(rows, s.k, s.asc);
+  else if (s.k === '_badge') rows = sortRows(rows.map(r => Object.assign({ _badge: badgeInfo(r).label }, r)), '_badge', s.asc);
+  // 기본 정렬 = 서버가 준 만료 임박순 그대로 (lifetime·null은 뒤)
+  const tb = $('#licTbl tbody');
+  tb.innerHTML = rows.map(r => `<tr class="rowclick ${selKey === r.license_key ? 'sel' : ''}" data-key="${esc(r.license_key)}">
+    <td>${badgeHtml(r)}</td>
+    <td>${esc(r.org_name)}</td>
+    <td style="font-family:Consolas,monospace">${esc(r.license_key)}</td>
+    <td>${esc(planKo(r.plan_type))}</td>
+    <td>${r.plan_type === 'lifetime' ? '<span class="tag">평생</span>' : esc(fmtD(r.expire_date))}</td>
+    <td>${esc(fmtDT(r.last_verified_at))}</td>
+    <td class="wrap">${esc(String(r.note || '').split('\n')[0]).slice(0, 60)}</td>
+  </tr>`).join('') || '<tr><td colspan="7" class="empty">조건에 맞는 라이선스가 없습니다.</td></tr>';
+  markSortHeader('licTbl', 'lic');
+  tb.querySelectorAll('tr[data-key]').forEach(tr => tr.addEventListener('click', () => openDetail(tr.dataset.key)));
+}
+$('#licSearch').addEventListener('input', renderLic);
+$('#licStatus').addEventListener('change', renderLic);
+$('#licPlan').addEventListener('change', renderLic);
+attachSort('licTbl', 'lic', renderLic);
+
+/* D. 키 상세 패널 */
+async function openDetail(key, keepScroll){
+  const r = LIC.find(x => x.license_key === key);
+  const p = $('#detail');
+  if (!r) { p.style.display = 'none'; selKey = null; return; }
+  selKey = key;
+  renderLic(); // 선택 행 하이라이트 갱신
+  const isLife = r.plan_type === 'lifetime';
+  p.style.display = 'block';
+  p.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <h3>${esc(r.org_name)}</h3>
+      <button data-x="1" style="padding:2px 9px">닫기</button>
+    </div>
+    ${badgeHtml(r)}
+    <div class="kv">
+      <div><b>키</b><span style="font-family:Consolas,monospace">${esc(r.license_key)}
+        <button data-a="copykey" style="padding:1px 8px;font-size:11px;margin-left:6px">키 복사</button></span></div>
+      <div><b>플랜</b><span>${esc(planKo(r.plan_type))}</span></div>
+      <div><b>시작일</b><span>${esc(fmtD(r.start_date))}</span></div>
+      <div><b>만료일</b><span>${isLife ? '없음 (평생)' : esc(fmtD(r.expire_date) || '—')}</span></div>
+      <div><b>기기</b><span>${r.device_id ? '등록됨 (' + esc(String(r.device_id).slice(0, 8)) + '…)' : '미등록 — 다음 검증 PC에 바인딩'}</span></div>
+      <div><b>최근 검증</b><span>${esc(fmtDT(r.last_verified_at)) || '—'}</span></div>
+    </div>
+    <div class="acts">
+      <button class="primary" data-a="guide">안내문 복사</button>
+      ${isLife ? '' : '<button data-a="extend">연장</button>'}
+      <button data-a="plan">플랜 변경</button>
+      ${r.status === 'suspended' ? '<button data-a="unsuspend">정지 해제</button>' : '<button class="danger" data-a="suspend">정지</button>'}
+      <button class="danger" data-a="reset">기기 초기화</button>
+      <button class="danger" data-a="del">삭제</button>
+    </div>
+    ${isLife ? '<p class="hint">평생 키는 만료일이 없어 연장 대상이 아닙니다 (서버도 거부). 기한제로 바꾸려면 플랜 변경(기관명 재확인 필요)을 사용하세요.</p>' : ''}
+    <h4>기관 메모</h4>
+    <textarea id="dNote">${esc(r.note || '')}</textarea>
+    <div style="text-align:right;margin-top:6px"><button data-a="note">메모 저장</button></div>
+    <h4>최근 검증 로그 (90일 내 최근 10건)</h4>
+    <div id="dLogs" class="hint">불러오는 중…</div>`;
+  p.querySelector('[data-x]').addEventListener('click', () => { selKey = null; p.style.display = 'none'; renderLic(); });
+  p.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => detailAction(b.dataset.a, r)));
+  if (!keepScroll) p.scrollTop = 0;
+  // 최근 로그 10건
+  try {
+    const d = await api('list_logs', { license_key: key, days: 90 });
+    const rows = (d.rows || []).slice(0, 10);
+    $('#dLogs').outerHTML = rows.length
+      ? `<table><thead><tr><th class="nosort">시각</th><th class="nosort">결과</th><th class="nosort">IP</th></tr></thead><tbody>` +
+        rows.map(l => `<tr class="${l.result === 'auto_stop' ? 'hl-stop' : ''}">
+          <td>${esc(fmtDT(l.created_at))}</td><td>${esc(resultKo(l.result))}</td><td>${esc(l.ip)}</td></tr>`).join('') +
+        `</tbody></table>`
+      : '<p class="hint" id="dLogs">기록 없음</p>';
+  } catch (e) { /* 잠금 등 */ }
+}
+function detailAction(a, r){
+  if (a === 'guide') copyGuide(r);
+  else if (a === 'copykey') {
+    navigator.clipboard.writeText(r.license_key)
+      .then(() => toast('키를 복사했습니다.'))
+      .catch(() => toast('브라우저가 복사를 차단했습니다 — 상세의 키를 드래그해 복사하세요.', true));
+  }
+  else if (a === 'extend') openExtendModal(r);
+  else if (a === 'plan') openPlanModal(r);
+  else if (a === 'suspend') openDangerModal(r, 'suspend');
+  else if (a === 'reset') openDangerModal(r, 'reset_device');
+  else if (a === 'unsuspend') showConfirm('정지 해제', `<b>${esc(r.org_name)}</b>의 정지를 해제하고 active로 되돌립니다.`, async () => {
+    const d = await api('unsuspend', { license_key: r.license_key });
+    if (d.success) { toast('정지를 해제했습니다.'); closeModal(); loadAll(); } else toast('실패: ' + (d.error || ''), true);
+  });
+  else if (a === 'del') openDeleteModal(r);
+  else if (a === 'note') saveNote(r);
+}
+async function saveNote(r){
+  const d = await api('save_note', { license_key: r.license_key, note: $('#dNote').value });
+  if (d.success) { toast('메모를 저장했습니다.'); r.note = $('#dNote').value; renderLic(); }
+  else toast('실패: ' + (d.error || ''), true);
+}
+
+/* A. 키 전달 안내문 자동 생성 + 복사 */
+function guideText(r){
+  const period = r.plan_type === 'lifetime' ? '평생 (만료 없음)'
+    : (r.plan_type === 'trial' ? '체험 30일 — ' : '') + (fmtD(r.expire_date) ? fmtD(r.expire_date) + ' 까지' : '');
+  return `[통합 사례관리 시스템] 라이선스 안내
+
+기관명: ${r.org_name}
+라이선스 키: ${r.license_key}
+사용 기간: ${period}
+
+■ 첫 사용
+1. 프로그램 실행 후 라이선스 키를 입력해 주세요.
+2. 초기 계정: admin / admin1234 (첫 로그인 시 비밀번호를 변경하게 됩니다)
+
+■ 꼭 알아두세요
+- 서버 PC 교체·윈도우 재설치 시에는 먼저 연락 주세요.
+- 만료 후 데이터 조회는 인터넷 연결 상태에서 가능합니다.
+- 기간 연장 후 바로 사용하려면 프로그램에서 키를 한 번 더 입력해 주세요.`;
+}
+async function copyGuide(r){
+  const text = guideText(r);
+  let copied = false;
+  try { await navigator.clipboard.writeText(text); copied = true; } catch (e) {}
+  showModal(`<h3>키 전달 안내문</h3>
+    ${copied ? '<div class="okbox">클립보드에 복사되었습니다. 그대로 붙여넣어 전달하세요.</div>'
+             : '<div class="warnbox">자동 복사가 차단되어 있습니다. 아래 내용을 드래그해 복사하세요.</div>'}
+    <pre>${esc(text)}</pre>
+    <div class="btns"><button data-copy="1">다시 복사</button><button class="primary" data-close="1">닫기</button></div>`);
+  $('#modalBody [data-copy]').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(text); toast('복사했습니다.'); } catch (e) { toast('브라우저가 복사를 차단했습니다 — 드래그로 복사하세요.'); }
+  });
+}
+
+/* 신규 발급 (중복 = 경고 후 force) */
+function openIssueModal(pre){
+  pre = pre || {};
+  showModal(`<h3>${pre.signup_id ? '가입 신청 승인 — 키 발급' : '신규 라이선스 발급'}</h3>
+    <div class="frow"><label>기관명</label><input type="text" id="mOrg" value="${esc(pre.org_name || '')}"></div>
+    <div class="frow"><label>플랜</label>
+      <select id="mPlan">
+        <option value="trial">체험 (30일)</option>
+        <option value="monthly">월간 (30일)</option>
+        <option value="yearly" selected>연간 (365일)</option>
+        <option value="lifetime">평생</option>
+        <option value="custom">기간 지정 — 만료일 직접 지정</option>
+      </select></div>
+    <div class="frow" id="mExpRow" style="display:none"><label>만료일 (기간 지정)</label><input type="date" id="mExp"></div>
+    <div class="frow"><label>기관 메모 (선택)</label><input type="text" id="mNote"></div>
+    <div id="mDup"></div>
+    <div class="btns"><button data-close="1">취소</button><button class="primary" id="mGo">발급</button></div>`);
+  $('#mPlan').addEventListener('change', () => {
+    $('#mExpRow').style.display = $('#mPlan').value === 'custom' ? 'block' : 'none';
+  });
+  $('#mGo').addEventListener('click', () => doIssue(pre.signup_id, false));
+}
+async function doIssue(signup_id, force){
+  const org = $('#mOrg').value.trim();
+  const plan = $('#mPlan').value;
+  if (!org) { toast('기관명을 입력하세요.'); return; }
+  if (plan === 'custom' && !$('#mExp').value) { toast('기간 지정 플랜은 만료일을 지정하세요.'); return; }
+  $('#mGo').disabled = true;
+  const d = await api('issue', {
+    org_name: org, plan_type: plan,
+    expire_date: plan === 'custom' ? $('#mExp').value : undefined,
+    note: $('#mNote').value.trim() || undefined,
+    signup_id: signup_id || undefined,
+    force: force || undefined,
+  });
+  $('#mGo').disabled = false;
+  if (d.duplicate) { // 중복 = 차단 아닌 경고 후 확인 → force 재요청
+    $('#mDup').innerHTML = `<div class="warnbox">
+      같은 기관명의 활성 키가 이미 있습니다:<br>
+      ${(d.existing || []).map(x => `· <b style="font-family:Consolas,monospace">${esc(x.license_key)}</b> (${esc(planKo(x.plan_type))}${x.expire_date ? ' · ~' + esc(fmtD(x.expire_date)) : ''})`).join('<br>')}
+      <br><br>정말 새 키를 추가 발급하시겠습니까? (본관·분관 추가 구매 등)
+      <div style="text-align:right;margin-top:8px"><button class="danger" id="mForce">재발급 확인 — 발급 진행</button></div>
+    </div>`;
+    $('#mForce').addEventListener('click', () => doIssue(signup_id, true));
+    return;
+  }
+  if (d.success) {
+    const lic = d.license;
+    showModal(`<h3>발급 완료</h3>
+      <div class="okbox">라이선스 키: <b style="font-family:Consolas,monospace;font-size:15px">${esc(lic.license_key)}</b><br>
+      ${esc(lic.org_name)} · ${esc(planKo(lic.plan_type))}${lic.expire_date ? ' · ~' + esc(fmtD(lic.expire_date)) : ' · 평생'}</div>
+      <div class="btns"><button class="primary" id="mGuide">안내문 복사</button><button data-close="1">닫기</button></div>`);
+    $('#mGuide').addEventListener('click', () => copyGuide(lic));
+    loadAll();
+  } else toast('발급 실패: ' + (d.error || ''), true);
+}
+$('#btnIssue').addEventListener('click', () => openIssueModal());
+
+/* 연장 — ★의도(term)만 전송·날짜 입력칸 없음 (서버 calcExpire 단일 정본)★ */
+function openExtendModal(r){
+  showModal(`<h3>기간 연장 — ${esc(r.org_name)}</h3>
+    <div class="frow"><label>현재 만료일</label><div>${esc(fmtD(r.expire_date) || '—')} ${badgeHtml(r)}</div></div>
+    <div class="frow"><label>연장 기간</label>
+      <select id="mTerm">
+        <option value="monthly">1개월 (30일)</option>
+        <option value="yearly" selected>1년 (365일)</option>
+        <option value="days">일수 직접 지정</option>
+      </select></div>
+    <div class="frow" id="mDaysRow" style="display:none"><label>연장 일수</label><input type="number" id="mDays" min="1" step="1" value="30"></div>
+    <p class="hint">새 만료일은 서버가 계산합니다 — 아직 만료 전이면 <b>현 만료일부터</b>, 이미 지났으면 <b>오늘부터</b> 더합니다.</p>
+    <p class="hint">연장 후 기관 반영은 다음 재검증 시(최대 24시간) — 바로 쓰려면 기관에서 키를 한 번 더 입력하면 즉시 반영됩니다.</p>
+    <div class="btns"><button data-close="1">취소</button><button class="primary" id="mGo">연장</button></div>`);
+  $('#mTerm').addEventListener('change', () => {
+    $('#mDaysRow').style.display = $('#mTerm').value === 'days' ? 'block' : 'none';
+  });
+  $('#mGo').addEventListener('click', async () => {
+    const term = $('#mTerm').value;
+    const days = parseInt($('#mDays').value, 10);
+    if (term === 'days' && (!Number.isInteger(days) || days <= 0)) { toast('연장 일수를 양의 정수로 입력하세요.'); return; }
+    $('#mGo').disabled = true;
+    const d = await api('extend', { license_key: r.license_key, term, duration_days: term === 'days' ? days : undefined });
+    $('#mGo').disabled = false;
+    if (d.success) {
+      const updated = Object.assign({}, r, { expire_date: d.expire_date, status: 'active' });
+      showModal(`<h3>연장 완료</h3>
+        <div class="okbox">${esc(r.org_name)} · 새 만료일 <b>${esc(d.expire_date)}</b> (기준일 ${esc(d.base_date)})</div>
+        <p class="hint">기관 반영은 다음 재검증 시(최대 24시간) — 바로 쓰려면 기관에서 키를 한 번 더 입력하면 즉시 반영됩니다. 아래 안내문에 그 문구가 들어 있습니다.</p>
+        <div class="btns"><button class="primary" id="mGuide">안내문 복사</button><button data-close="1">닫기</button></div>`);
+      $('#mGuide').addEventListener('click', () => copyGuide(updated));
+      loadAll();
+    }
+    else toast('연장 실패: ' + (d.error || ''), true);
+  });
+}
+
+/* 플랜 변경 + 사용 기간 설정 — 체험/월간/연간=시작일부터 서버 계산·기간 지정=시작~만료 직접 지정
+   ★평생 키를 기한제로 강등할 때는 기관명 재확인(서버도 confirm_org 요구)★ */
+function openPlanModal(r){
+  const curLife = r.plan_type === 'lifetime';
+  showModal(`<h3>플랜 변경 — ${esc(r.org_name)}</h3>
+    <div class="frow"><label>현재</label><div>${esc(planKo(r.plan_type))} · ${curLife ? '만료 없음 (평생)' : esc(fmtD(r.start_date) || '?') + ' ~ ' + esc(fmtD(r.expire_date) || '?')}</div></div>
+    <div class="frow"><label>새 플랜</label>
+      <select id="pPlan">
+        <option value="trial">체험 (30일)</option>
+        <option value="monthly">월간 (30일)</option>
+        <option value="yearly" selected>연간 (365일)</option>
+        <option value="lifetime">평생</option>
+        <option value="custom">기간 지정 — 시작일~만료일 직접 설정</option>
+      </select></div>
+    <div class="frow" id="pStartRow"><label>시작일 (비우면 오늘부터)</label><input type="date" id="pStart"></div>
+    <div class="frow" id="pExpRow" style="display:none"><label>만료일</label><input type="date" id="pExp"></div>
+    <p class="hint" id="pHint">체험·월간·연간은 시작일부터 서버가 만료일을 계산합니다. 변경하면 상태는 '사용 중'이 됩니다.</p>
+    <div id="pConfirmRow" style="display:none">
+      <div class="dangerbox">★평생 키를 기한제로 바꿉니다 — 이후 만료일이 생깁니다.★<br>
+      확인을 위해 기관명을 그대로 입력하세요: <b>${esc(r.org_name)}</b></div>
+      <div class="frow"><input type="text" id="pConfirm" autocomplete="off"></div>
+    </div>
+    <div class="btns"><button data-close="1">취소</button><button class="primary" id="mGo">플랜 변경</button></div>`);
+  function refresh(){
+    const p = $('#pPlan').value;
+    $('#pStartRow').style.display = p === 'lifetime' ? 'none' : 'block';
+    $('#pExpRow').style.display = p === 'custom' ? 'block' : 'none';
+    $('#pHint').style.display = (p === 'custom' || p === 'lifetime') ? 'none' : 'block';
+    $('#pConfirmRow').style.display = (curLife && p !== 'lifetime') ? 'block' : 'none';
+  }
+  $('#pPlan').addEventListener('change', refresh);
+  refresh();
+  $('#mGo').addEventListener('click', async () => {
+    const p = $('#pPlan').value;
+    const start = $('#pStart').value;
+    const exp = $('#pExp').value;
+    if (p === 'custom' && !exp) { toast('기간 지정 플랜은 만료일을 입력하세요.'); return; }
+    if (p === 'custom' && start && start > exp) { toast('시작일이 만료일보다 늦을 수 없습니다.'); return; }
+    if (curLife && p !== 'lifetime' && $('#pConfirm').value !== r.org_name) { toast('기관명을 정확히 입력하세요.'); return; }
+    $('#mGo').disabled = true;
+    const d = await api('change_plan', {
+      license_key: r.license_key, plan_type: p,
+      start_date: (p !== 'lifetime' && start) ? start : undefined,
+      expire_date: p === 'custom' ? exp : undefined,
+      confirm_org: (curLife && p !== 'lifetime') ? $('#pConfirm').value : undefined,
+    });
+    $('#mGo').disabled = false;
+    if (d.success) {
+      toast(`플랜 변경 완료 — ${planKo(d.plan_type)}${d.expire_date ? ' · ~' + d.expire_date : ' · 평생'}`);
+      closeModal(); loadAll();
+    } else toast('변경 실패: ' + (d.error || ''), true);
+  });
+}
+
+/* B. 위험 작업 확인 모달 — 기관명 표시 + 사유 입력(기관 메모에 기록) */
+function openDangerModal(r, opName){
+  const title = opName === 'suspend' ? '라이선스 정지' : '기기 초기화';
+  const descr = opName === 'suspend'
+    ? '해당 기관은 다음 재검증 시(최대 24시간) 사용이 차단됩니다.'
+    : '기기 바인딩을 해제합니다 — 다음 검증하는 PC에 다시 바인딩됩니다. 서버 PC 교체·윈도우 재설치 시에만 사용하세요.';
+  showModal(`<h3>${title}</h3>
+    <div class="dangerbox">대상: <b>${esc(r.org_name)}</b> (${esc(r.license_key)})<br>${descr}</div>
+    <div class="frow"><label>사유 (필수 — 기관 메모에 날짜와 함께 기록됩니다)</label><input type="text" id="mReason"></div>
+    <div class="btns"><button data-close="1">취소</button><button class="danger" id="mGo">${title} 실행</button></div>`);
+  $('#mGo').addEventListener('click', async () => {
+    const reason = $('#mReason').value.trim();
+    if (!reason) { toast('사유를 입력하세요.'); return; }
+    $('#mGo').disabled = true;
+    const d = await api(opName, { license_key: r.license_key });
+    if (d.success) {
+      // 조치 자체는 이미 완료 — 사유 기록(save_note)이 실패해도 모달은 닫고 사유 원문을 보존해 알림
+      const line = `[${todayStr()} ${title}] ${reason}`;
+      let noted = false;
+      try {
+        const n = await api('save_note', { license_key: r.license_key, note: (r.note ? r.note + '\n' : '') + line });
+        noted = !!(n && n.success);
+      } catch (e) { /* 401 잠금 등 — 조치는 이미 완료된 상태 */ }
+      closeModal(); loadAll();
+      if (noted) toast(title + ' 완료 — 사유를 기관 메모에 기록했습니다.');
+      else toast(title + '는 완료됐지만 사유 기록에 실패했습니다 — 기관 메모에 직접 적어주세요: ' + line, true);
+    } else { $('#mGo').disabled = false; toast('실패: ' + (d.error || ''), true); }
+  });
+}
+
+/* 삭제 — 기관명 그대로 입력해야 실행 (confirm_org) */
+function openDeleteModal(r){
+  showModal(`<h3>라이선스 삭제</h3>
+    <div class="dangerbox">키 <b style="font-family:Consolas,monospace">${esc(r.license_key)}</b>를 장부에서 완전히 삭제합니다.
+    되돌릴 수 없습니다. 시험 데이터 정리 용도입니다.</div>
+    <div class="frow"><label>확인을 위해 기관명을 그대로 입력하세요: <b>${esc(r.org_name)}</b></label>
+    <input type="text" id="mConfirm" autocomplete="off"></div>
+    <div class="btns"><button data-close="1">취소</button><button class="danger" id="mGo">삭제 실행</button></div>`);
+  $('#mGo').addEventListener('click', async () => {
+    const d = await api('delete_license', { license_key: r.license_key, confirm_org: $('#mConfirm').value });
+    if (d.success) { toast('삭제했습니다.'); selKey = null; $('#detail').style.display = 'none'; closeModal(); loadAll(); }
+    else toast('삭제 실패: ' + (d.error || ''), true);
+  });
+}
+
+/* F. CSV 내보내기 (클라이언트측·현재 필터 반영) */
+$('#btnCsv').addEventListener('click', () => {
+  const cols = ['org_name', 'license_key', 'plan_type', 'status', 'start_date', 'expire_date', 'last_verified_at', 'note'];
+  const header = ['기관명', '라이선스키', '플랜', '상태', '시작일', '만료일', '최근검증', '메모'];
+  const rows = licFiltered().map(r => cols.map(c => {
+    let v = r[c] == null ? '' : String(r[c]);
+    if (c === 'plan_type') v = planKo(v);
+    if (c === 'status') v = LIC_STATUS_KO[v] || v;
+    return '"' + v.replace(/"/g, '""') + '"';
+  }).join(','));
+  const csv = '\uFEFF' + header.join(',') + '\n' + rows.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `licenses_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+/* ── ④ 로그 ─────────────────────────────────────────── */
+async function loadLogs(){
+  logsLoadedOnce = true;
+  const params = { days: parseInt($('#logDays').value, 10) };
+  const k = $('#logKey').value.trim();
+  if (k) params.license_key = k;
+  const d = await api('list_logs', params);
+  if (d.success) { LOGS = d.rows || []; renderLog(); }
+  else toast('로그 조회 실패: ' + (d.error || ''), true);
+}
+$('#btnLogLoad').addEventListener('click', loadLogs);
+$('#logKey').addEventListener('keydown', e => { if (e.key === 'Enter') loadLogs(); });
+function crossIpKeys(){
+  // 최근 7일 내 같은 키에 서로 다른 IP → 의심(디스크 복제·시차 운용)
+  const since = new Date(); since.setDate(since.getDate() - 7);
+  const map = {};
+  for (const l of LOGS) {
+    if (!l.ip || !l.created_at || new Date(l.created_at) < since) continue;
+    (map[l.license_key] = map[l.license_key] || new Set()).add(l.ip);
+  }
+  return new Set(Object.keys(map).filter(k => map[k].size > 1));
+}
+function renderLog(){
+  const orgOf = {};
+  LIC.forEach(r => orgOf[r.license_key] = r.org_name);
+  let rows = LOGS.map(l => Object.assign({ _org: orgOf[l.license_key] || '' }, l));
+  const s = sortState.log;
+  if (s.k) rows = sortRows(rows, s.k, s.asc); // 기본: 서버가 준 최신순
+  const cross = crossIpKeys();
+  const tb = $('#logTbl tbody');
+  tb.innerHTML = rows.map(l => `<tr class="${l.result === 'auto_stop' ? 'hl-stop' : (cross.has(l.license_key) ? 'hl-cross' : '')}">
+    <td>${esc(fmtDT(l.created_at))}</td>
+    <td style="font-family:Consolas,monospace">${esc(l.license_key)}</td>
+    <td>${esc(l._org)}</td>
+    <td>${esc(resultKo(l.result))}${RESULT_KO[l.result] ? ' <span class="tag">' + esc(l.result) + '</span>' : ''}${cross.has(l.license_key) ? ' <span class="tag">IP 교차</span>' : ''}</td>
+    <td>${esc(l.ip)}</td>
+    <td>${l.ip ? `<button data-blk="${esc(l.ip)}" data-org="${esc(l._org)}">이 IP 차단</button>` : ''}</td>
+  </tr>`).join('') || '<tr><td colspan="6" class="empty">조건에 맞는 로그가 없습니다. (기간·키를 바꿔 조회해 보세요)</td></tr>';
+  markSortHeader('logTbl', 'log');
+  tb.querySelectorAll('[data-blk]').forEach(b => b.addEventListener('click', () => openBlockModal(b.dataset.blk, b.dataset.org)));
+}
+attachSort('logTbl', 'log', renderLog);
+
+/* ── ⑤ IP 차단 ──────────────────────────────────────── */
+function renderBlk(){
+  let rows = BLK.slice();
+  const s = sortState.ip;
+  if (s.k) rows = sortRows(rows, s.k, s.asc); // 기본: 서버가 준 최신순
+  const tb = $('#ipTbl tbody');
+  tb.innerHTML = rows.map(r => `<tr>
+    <td style="font-family:Consolas,monospace">${esc(r.ip)}</td>
+    <td class="wrap">${esc(r.reason)}</td>
+    <td>${esc(r.org_name)}</td>
+    <td>${esc(fmtDT(r.blocked_at))}</td>
+    <td><button data-ub="${esc(r.ip)}">해제</button></td>
+  </tr>`).join('') || '<tr><td colspan="5" class="empty">차단된 IP가 없습니다.</td></tr>';
+  markSortHeader('ipTbl', 'ip');
+  tb.querySelectorAll('[data-ub]').forEach(b => b.addEventListener('click', () => {
+    showConfirm('IP 차단 해제', `<b style="font-family:Consolas,monospace">${esc(b.dataset.ub)}</b> 차단을 해제합니다.`, async () => {
+      const d = await api('unblock_ip', { ip: b.dataset.ub });
+      if (d.success) { toast('해제했습니다.'); closeModal(); loadAll(); } else toast('실패: ' + (d.error || ''), true);
+    });
+  }));
+}
+attachSort('ipTbl', 'ip', renderBlk);
+function openBlockModal(ip, org){
+  showModal(`<h3>IP 차단</h3>
+    <div class="dangerbox">차단 대상 IP: <b style="font-family:Consolas,monospace">${esc(ip)}</b>${org ? '<br>관련 기관: <b>' + esc(org) + '</b>' : ''}<br>
+    반영은 해당 기관의 다음 재검증 시(최대 24시간)입니다.</div>
+    <div class="frow"><label>사유 (필수)</label><input type="text" id="mReason"></div>
+    <div class="btns"><button data-close="1">취소</button><button class="danger" id="mGo">차단 실행</button></div>`);
+  $('#mGo').addEventListener('click', () => doBlock(ip, org));
+}
+async function doBlock(ip, org){
+  const reason = ($('#mReason') ? $('#mReason').value : '').trim();
+  if (!ip) { toast('IP를 입력하세요.'); return; }
+  if (!reason) { toast('사유는 필수입니다.'); return; }
+  const d = await api('block_ip', { ip, reason, org_name: org || undefined });
+  if (d.success) { toast('차단했습니다.'); closeModal(); loadAll(); } else toast('실패: ' + (d.error || ''), true);
+}
+$('#btnIpAdd').addEventListener('click', () => {
+  const ip = $('#ipNew').value.trim(), reason = $('#ipReason').value.trim(), org = $('#ipOrg').value.trim();
+  if (!ip) { toast('차단할 IP를 입력하세요.'); return; }
+  if (!reason) { toast('사유는 필수입니다.'); return; }
+  showConfirm('IP 차단', `<b style="font-family:Consolas,monospace">${esc(ip)}</b>을(를) 차단합니다.<br>사유: ${esc(reason)}`, async () => {
+    const d = await api('block_ip', { ip, reason, org_name: org || undefined });
+    if (d.success) { toast('차단했습니다.'); $('#ipNew').value = ''; $('#ipReason').value = ''; $('#ipOrg').value = ''; closeModal(); loadAll(); }
+    else toast('실패: ' + (d.error || ''), true);
+  }, true);
+});
+
+/* ── 모달 공통 ───────────────────────────────────────── */
+function showModal(html){
+  $('#modalBody').innerHTML = html;
+  $('#ovl').classList.add('on');
+  $('#modalBody').querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeModal));
+}
+function closeModal(){ $('#ovl').classList.remove('on'); $('#modalBody').innerHTML = ''; }
+$('#ovl').addEventListener('click', e => { if (e.target === $('#ovl')) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+function showConfirm(title, bodyHtml, onOk, danger){
+  showModal(`<h3>${esc(title)}</h3>
+    <div class="${danger ? 'dangerbox' : 'warnbox'}">${bodyHtml}</div>
+    <div class="btns"><button data-close="1">취소</button><button class="${danger ? 'danger' : 'primary'}" id="mGo">확인</button></div>`);
+  $('#mGo').addEventListener('click', onOk);
+}
+
+$('#gateSecret').focus();
+</script>
+</body>
+</html>
